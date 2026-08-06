@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statute — A UK Law Learning Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12161f;
+    --ink-2:#181d29;
+    --card:rgba(234,231,221,0.05);
+    --card-border:rgba(201,162,75,0.28);
+    --gold:#c9a24b;
+    --gold-bright:#e0bd6e;
+    --red:#b5442e;
+    --off-white:#eae7dd;
+    --off-white-dim:rgba(234,231,221,0.62);
+    --serif:'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    padding:0;
+    min-height:100%;
+    background:var(--ink);
+    color:var(--off-white);
+    font-family:var(--sans);
+  }
+
+  body{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  /* subtle linen / paper-grain texture + vignette */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(234,231,221,0.015) 0px, rgba(234,231,221,0.015) 1px, transparent 1px, transparent 3px),
+      repeating-linear-gradient(90deg, rgba(234,231,221,0.012) 0px, rgba(234,231,221,0.012) 1px, transparent 1px, transparent 3px),
+      radial-gradient(ellipse at 50% 0%, rgba(201,162,75,0.07), transparent 60%),
+      radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.55), transparent 70%);
+  }
+
+  #app{
+    position:relative;
+    z-index:1;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    padding:24px 16px 12px;
+  }
+
+  .screen{ display:none; width:100%; max-width:760px; }
+  .screen.active{ display:flex; flex-direction:column; align-items:center; }
+
+  h1,h2,h3{ font-family:var(--serif); font-weight:700; margin:0; }
+
+  /* ---------- Start screen ---------- */
+  .brand{
+    text-align:center;
+    margin-bottom:20px;
+  }
+  .brand .mark{
+    display:inline-block;
+    font-family:var(--sans);
+    font-size:11px;
+    letter-spacing:0.32em;
+    color:var(--gold);
+    text-transform:uppercase;
+    border:1px solid var(--card-border);
+    border-radius:999px;
+    padding:5px 14px;
+    margin-bottom:18px;
+  }
+  .brand h1{
+    font-size:clamp(2.6rem, 7vw, 4.2rem);
+    letter-spacing:0.02em;
+    color:var(--off-white);
+    text-shadow:0 0 40px rgba(201,162,75,0.18);
+  }
+  .brand p.tag{
+    font-family:var(--serif);
+    font-style:italic;
+    color:var(--off-white-dim);
+    font-size:1.05rem;
+    margin-top:10px;
+  }
+
+  .glass-card{
+    width:100%;
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:18px;
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    box-shadow:0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
+    padding:32px;
+  }
+
+  .intro-copy{ font-size:0.98rem; line-height:1.65; color:var(--off-white-dim); margin:0 0 18px; }
+  .intro-copy strong{ color:var(--off-white); font-weight:600; }
+
+  .category-chips{ display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }
+  .chip{
+    font-size:0.72rem;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    border:1px solid var(--card-border);
+    color:var(--gold-bright);
+    padding:6px 12px;
+    border-radius:999px;
+    background:rgba(201,162,75,0.06);
+  }
+
+  .btn{
+    font-family:var(--sans);
+    font-weight:600;
+    font-size:0.95rem;
+    letter-spacing:0.01em;
+    border-radius:10px;
+    padding:14px 26px;
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .btn:focus-visible{ outline:2px solid var(--gold-bright); outline-offset:3px; }
+  .btn-primary{
+    background:linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color:#20180a;
+    box-shadow:0 8px 24px rgba(201,162,75,0.28);
+  }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 12px 30px rgba(201,162,75,0.38); }
+  .btn-ghost{
+    background:transparent;
+    color:var(--off-white);
+    border-color:var(--card-border);
+  }
+  .btn-ghost:hover{ background:rgba(234,231,221,0.06); }
+
+  .start-actions{ display:flex; justify-content:center; margin-top:8px; }
+
+  /* ---------- Game screen ---------- */
+  #game-screen{ gap:16px; }
+
+  .hud{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:2px;
+  }
+
+  .hud-group{ display:flex; align-items:center; gap:16px; }
+  .hud-stat{ text-align:left; }
+  .hud-stat .label{ font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--off-white-dim); display:block; }
+  .hud-stat .value{ font-family:var(--serif); font-size:1.4rem; font-weight:700; color:var(--gold-bright); }
+
+  .lives{ display:flex; gap:6px; }
+  .seal{
+    width:20px; height:20px;
+    border-radius:50%;
+    border:2px solid var(--gold);
+    background:radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 70%);
+    box-shadow:0 0 8px rgba(201,162,75,0.5);
+    transition:opacity 0.3s ease, transform 0.3s ease;
+  }
+  .seal.lost{ background:transparent; border-color:rgba(234,231,221,0.2); box-shadow:none; opacity:0.4; transform:scale(0.85); }
+
+  /* case-file tracker */
+  .case-tracker{
+    width:100%;
+    display:flex;
+    gap:3px;
+    padding:4px 0 2px;
+  }
+  .tab{
+    flex:1;
+    height:7px;
+    border-radius:3px;
+    background:rgba(234,231,221,0.12);
+    position:relative;
+    overflow:hidden;
+  }
+  .tab.current{ background:rgba(201,162,75,0.28); }
+  .tab.done-correct{ background:var(--gold); }
+  .tab.done-wrong{ background:var(--red); }
+  .case-label{ font-size:0.68rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--off-white-dim); margin-bottom:6px; align-self:flex-start; }
+
+  .scenario-card{
+    width:100%;
+    position:relative;
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:20px;
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    box-shadow:0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03);
+    padding:30px;
+    overflow:hidden;
+  }
+
+  .category-tag{
+    display:inline-block;
+    font-size:0.68rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--gold-bright);
+    border:1px solid var(--card-border);
+    padding:4px 10px;
+    border-radius:999px;
+    margin-bottom:16px;
+  }
+
+  .scenario-text{
+    font-family:var(--serif);
+    font-size:clamp(1.15rem, 2.4vw, 1.45rem);
+    line-height:1.5;
+    color:var(--off-white);
+    margin:0 0 24px;
+  }
+
+  .options{ display:flex; flex-direction:column; gap:10px; }
+
+  .option{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    width:100%;
+    text-align:left;
+    background:rgba(234,231,221,0.03);
+    border:1px solid var(--card-border);
+    color:var(--off-white);
+    border-radius:12px;
+    padding:14px 16px;
+    font-family:var(--sans);
+    font-size:0.95rem;
+    cursor:pointer;
+    transition:background 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+  }
+  .option:hover:not(:disabled){ background:rgba(201,162,75,0.09); border-color:var(--gold); }
+  .option:focus-visible{ outline:2px solid var(--gold-bright); outline-offset:2px; }
+  .option:disabled{ cursor:default; }
+  .option .key{
+    flex:0 0 auto;
+    width:26px; height:26px;
+    border-radius:7px;
+    border:1px solid var(--card-border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.78rem; font-weight:600; color:var(--off-white-dim);
+  }
+  .option.correct{ background:rgba(201,162,75,0.18); border-color:var(--gold); }
+  .option.correct .key{ background:var(--gold); color:#20180a; border-color:var(--gold); }
+  .option.wrong{ background:rgba(181,68,46,0.18); border-color:var(--red); }
+  .option.wrong .key{ background:var(--red); color:var(--off-white); border-color:var(--red); }
+  .option.dim{ opacity:0.45; }
+
+  /* feedback */
+  .feedback{
+    margin-top:22px;
+    padding-top:20px;
+    border-top:1px dashed var(--card-border);
+    display:none;
+  }
+  .feedback.show{ display:block; }
+
+  .stamp-row{ display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+  .stamp{
+    font-family:var(--serif);
+    font-weight:700;
+    font-size:1.05rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    padding:8px 18px;
+    border:3px solid var(--gold);
+    color:var(--gold-bright);
+    border-radius:6px;
+    transform:rotate(-6deg) scale(1.3);
+    opacity:0;
+    display:inline-block;
+  }
+  .stamp.wrong-stamp{ border-color:var(--red); color:#e6a394; }
+  .stamp.animate{ animation:stampDown 0.5s cubic-bezier(.2,1.4,.4,1) forwards; }
+  @keyframes stampDown{
+    0%{ opacity:0; transform:rotate(-6deg) scale(2.2); }
+    60%{ opacity:1; transform:rotate(-6deg) scale(0.94); }
+    100%{ opacity:1; transform:rotate(-6deg) scale(1); }
+  }
+
+  .streak-note{ font-size:0.85rem; color:var(--off-white-dim); }
+  .streak-note strong{ color:var(--gold-bright); }
+
+  .explanation{ font-size:0.95rem; line-height:1.6; color:var(--off-white-dim); margin:0 0 16px; }
+  .explanation strong{ color:var(--off-white); }
+
+  .citation{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    background:rgba(201,162,75,0.06);
+    border:1px solid var(--card-border);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:20px;
+  }
+  .citation .cite-text{ font-size:0.85rem; color:var(--off-white); }
+  .citation .cite-text em{ color:var(--gold-bright); font-style:normal; font-weight:600; }
+  .citation a{
+    font-size:0.82rem;
+    font-weight:600;
+    color:var(--gold-bright);
+    text-decoration:none;
+    border-bottom:1px solid var(--gold);
+    white-space:nowrap;
+  }
+  .citation a:hover{ color:var(--off-white); }
+
+  .continue-row{ display:flex; justify-content:flex-end; }
+
+  /* ---------- End screen ---------- */
+  .end-score{ font-family:var(--serif); font-size:clamp(2.4rem,6vw,3.2rem); color:var(--gold-bright); margin:6px 0; }
+  .end-sub{ color:var(--off-white-dim); font-size:0.95rem; margin-bottom:22px; }
+
+  .breakdown{ width:100%; display:flex; flex-direction:column; gap:10px; margin:18px 0 26px; }
+  .breakdown-row{ display:flex; align-items:center; gap:12px; }
+  .breakdown-row .cat-name{ flex:0 0 150px; font-size:0.82rem; color:var(--off-white); }
+  .breakdown-bar{ flex:1; height:8px; border-radius:4px; background:rgba(234,231,221,0.1); overflow:hidden; }
+  .breakdown-fill{ height:100%; background:linear-gradient(90deg, var(--gold), var(--gold-bright)); }
+  .breakdown-row .cat-score{ flex:0 0 46px; text-align:right; font-size:0.78rem; color:var(--off-white-dim); }
+
+  .end-actions{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+
+  /* ---------- Footer disclaimer ---------- */
+  .disclaimer{
+    position:relative;
+    z-index:1;
+    text-align:center;
+    font-size:0.74rem;
+    color:var(--off-white-dim);
+    padding:14px 16px 20px;
+    border-top:1px solid rgba(234,231,221,0.08);
+  }
+  .disclaimer strong{ color:var(--gold-bright); font-weight:600; }
+
+  @media (max-width:600px){
+    .glass-card, .scenario-card{ padding:22px 18px; border-radius:16px; }
+    .hud{ gap:10px; }
+    .hud-group{ gap:12px; }
+    .breakdown-row .cat-name{ flex-basis:110px; font-size:0.76rem; }
+    .end-actions{ flex-direction:column; width:100%; }
+    .end-actions .btn{ width:100%; text-align:center; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+    .stamp.animate{ opacity:1; transform:rotate(-6deg) scale(1); }
+  }
+
+  .visually-hidden{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- START SCREEN -->
+  <section id="start-screen" class="screen active">
+    <div class="brand">
+      <span class="mark">Case File No. UK‑2026</span>
+      <h1>STATUTE</h1>
+      <p class="tag">A game of real law, real scenarios, real citations.</p>
+    </div>
+    <div class="glass-card">
+      <p class="intro-copy">
+        You'll be handed a short, everyday scenario — a dodgy landlord, a faulty blender, a driver who won't stop
+        after a bump. Pick the answer that matches how <strong>real UK legislation</strong> actually treats it.
+        Every verdict links straight back to the Act and section on <strong>legislation.gov.uk</strong>, so you can
+        check the source yourself.
+      </p>
+      <p class="intro-copy">
+        You've got <strong>three lives</strong> — a wrong answer costs one, but the case keeps moving. Build a
+        <strong>streak</strong> of correct answers for bonus points.
+      </p>
+      <div class="category-chips">
+        <span class="chip">Contract Basics</span>
+        <span class="chip">Consumer Rights</span>
+        <span class="chip">Tenancy &amp; Property</span>
+        <span class="chip">Road Traffic</span>
+        <span class="chip">Data Protection</span>
+      </div>
+      <p class="intro-copy" style="font-size:0.82rem;">
+        <strong>Not legal advice.</strong> This is an educational game for general awareness of UK law. Legislation
+        changes and has exceptions — always check the current text on legislation.gov.uk or consult a qualified
+        professional for real situations.
+      </p>
+      <div class="start-actions">
+        <button class="btn btn-primary" id="start-btn">Open the Case File</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GAME SCREEN -->
+  <section id="game-screen" class="screen">
+    <div class="case-label" id="case-label">Question 1 of 21</div>
+    <div class="case-tracker" id="case-tracker" role="progressbar" aria-label="Case progress"></div>
+
+    <div class="hud">
+      <div class="hud-group">
+        <div class="hud-stat"><span class="label">Score</span><span class="value" id="hud-score">0</span></div>
+        <div class="hud-stat"><span class="label">Streak</span><span class="value" id="hud-streak">0</span></div>
+      </div>
+      <div class="hud-group">
+        <div class="hud-stat" style="text-align:right;">
+          <span class="label">Lives</span>
+          <div class="lives" id="hud-lives"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scenario-card">
+      <span class="category-tag" id="q-category">Category</span>
+      <p class="scenario-text" id="q-scenario">Scenario text goes here.</p>
+
+      <div class="options" id="q-options" role="group" aria-label="Answer options"></div>
+
+      <div class="feedback" id="feedback">
+        <div class="stamp-row">
+          <span class="stamp" id="stamp">Affirmed</span>
+          <span class="streak-note" id="streak-note"></span>
+        </div>
+        <p class="explanation" id="q-explanation"></p>
+        <div class="citation">
+          <span class="cite-text" id="q-citation"></span>
+          <a id="q-link" href="#" target="_blank" rel="noopener noreferrer">View on legislation.gov.uk ↗</a>
+        </div>
+        <div class="continue-row">
+          <button class="btn btn-primary" id="continue-btn">Next Case →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- END SCREEN -->
+  <section id="end-screen" class="screen">
+    <div class="brand">
+      <span class="mark">Case Closed</span>
+      <h1 style="font-size:clamp(1.8rem,5vw,2.6rem);">Verdict Reached</h1>
+    </div>
+    <div class="glass-card" style="text-align:center;">
+      <div class="end-score" id="end-score">0</div>
+      <div class="end-sub" id="end-sub">points</div>
+      <div class="breakdown" id="breakdown"></div>
+      <div class="end-actions">
+        <button class="btn btn-primary" id="play-again-btn">Play Again</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="disclaimer">
+  <strong>Statute</strong> is an educational game for general legal awareness — it is not legal advice. UK law
+  changes and has exceptions; always verify against the current text on legislation.gov.uk.
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================
+     QUESTION BANK
+     Each entry: category, scenario, options[{text, correct}],
+     explanation, act, section, url.
+     All citations verified against legislation.gov.uk (Aug 2026).
+     Add new questions here — no need to touch game logic below.
+  ========================================================= */
+  const QUESTIONS = [
+    {
+      category: "Contract Basics",
+      scenario: "You buy a used car after the seller tells you it's never been in an accident. It turns out it was — a year earlier — but the seller genuinely didn't know that. Can you claim damages, not just walk away from the deal?",
+      options: [
+        { text: "No — you can only cancel the contract, not claim damages, since it wasn't deliberate.", correct:false },
+        { text: "Yes — the seller can be liable in damages as if they'd lied on purpose, unless they can prove they had reasonable grounds to believe it was true.", correct:true },
+        { text: "No — since the seller didn't know, there's no legal remedy at all.", correct:false },
+        { text: "Yes, but only if you can prove the seller intended to deceive you.", correct:false }
+      ],
+      explanation: "Section 2(1) shifts the burden onto the person who made the false statement: they're liable in damages <strong>as if</strong> the misrepresentation were fraudulent, unless they can prove they reasonably believed it was true right up to the point of sale.",
+      act: "Misrepresentation Act 1967", section: "Section 2(1)",
+      url: "https://www.legislation.gov.uk/ukpga/1967/7/section/2"
+    },
+    {
+      category: "Contract Basics",
+      scenario: "A gym has you sign a waiver saying it takes no responsibility for injuries — including serious ones — caused by its own staff's negligence. Is that waiver enforceable?",
+      options: [
+        { text: "Yes — if you sign it, you're bound by anything a waiver says.", correct:false },
+        { text: "No — liability for death or personal injury caused by negligence cannot be excluded by a contract term or notice.", correct:true },
+        { text: "Only enforceable if the gym also carries public liability insurance.", correct:false },
+        { text: "Yes, but only for injuries below a certain severity.", correct:false }
+      ],
+      explanation: "Section 2 makes it impossible to exclude or restrict liability for death or personal injury resulting from negligence — no waiver, sign-in sheet, or clause can override this, no matter what was signed.",
+      act: "Unfair Contract Terms Act 1977", section: "Section 2",
+      url: "https://www.legislation.gov.uk/ukpga/1977/50/section/2"
+    },
+    {
+      category: "Contract Basics",
+      scenario: "A gym membership contract lets the gym cancel your membership any time without a refund, while locking you into a 12-month term with a hefty exit fee if you leave early. Could a court strike this term down?",
+      options: [
+        { text: "No — if you signed the contract, every term is binding no matter what.", correct:false },
+        { text: "Yes — a term causing significant imbalance to the consumer's detriment, contrary to good faith, isn't binding on them.", correct:true },
+        { text: "Only if the consumer pays the fee first and then sues to get it back.", correct:false },
+        { text: "No — unfair terms in consumer contracts aren't regulated in the UK.", correct:false }
+      ],
+      explanation: "Section 62 says an unfair term — one that creates a significant imbalance against the consumer contrary to good faith — simply isn't binding on the consumer, though the consumer can still choose to rely on it if they want.",
+      act: "Consumer Rights Act 2015", section: "Section 62",
+      url: "https://www.legislation.gov.uk/ukpga/2015/15/section/62"
+    },
+    {
+      category: "Contract Basics",
+      scenario: "Two neighbours shake hands and orally agree that one will buy the other's garden plot for £5,000. Nothing is written down. Is this a valid, binding land sale contract?",
+      options: [
+        { text: "Yes — a verbal agreement is legally binding for any contract.", correct:false },
+        { text: "No — a contract for the sale of land must be in writing, contain all agreed terms, and be signed by both parties.", correct:true },
+        { text: "Yes, as long as money actually changed hands.", correct:false },
+        { text: "No — land sales require a notarised deed witnessed at the moment of the handshake.", correct:false }
+      ],
+      explanation: "Section 2 requires contracts for the sale or disposition of land to be made in writing, incorporate all the terms the parties have agreed, and be signed by (or on behalf of) each party. A handshake alone doesn't create an enforceable land contract.",
+      act: "Law of Property (Miscellaneous Provisions) Act 1989", section: "Section 2",
+      url: "https://www.legislation.gov.uk/ukpga/1989/34/section/2"
+    },
+    {
+      category: "Consumer Rights",
+      scenario: "You buy a blender online. It works fine twice, then the motor burns out because of a manufacturing fault. What implied right protects you here?",
+      options: [
+        { text: "None — you should have bought extended insurance.", correct:false },
+        { text: "A right that goods must be of \"satisfactory quality\" — covering durability and freedom from defects.", correct:true },
+        { text: "A right only to a discount, never a refund or repair.", correct:false },
+        { text: "None, because the fault only appeared after you'd started using it.", correct:false }
+      ],
+      explanation: "Section 9 implies a term into every consumer goods contract that the goods are of satisfactory quality — judged against fitness for purpose, appearance, safety, and durability, among other things.",
+      act: "Consumer Rights Act 2015", section: "Section 9",
+      url: "https://www.legislation.gov.uk/ukpga/2015/15/section/9"
+    },
+    {
+      category: "Consumer Rights",
+      scenario: "A toaster you bought turns out to be faulty. You spot the fault three weeks after purchase and want a full refund, not a repair. Can you insist on cash back?",
+      options: [
+        { text: "No — the trader can always insist on offering a repair or replacement first.", correct:false },
+        { text: "Yes — you generally have a \"short-term right to reject\" faulty goods for a full refund within 30 days of purchase.", correct:true },
+        { text: "No — refunds are only available within 7 days under UK law.", correct:false },
+        { text: "Yes, but only as store credit, never as a cash refund.", correct:false }
+      ],
+      explanation: "Section 22 gives consumers a short-term right to reject faulty goods and get a full refund, generally exercisable within 30 days of taking ownership — no need to accept a repair first.",
+      act: "Consumer Rights Act 2015", section: "Section 22",
+      url: "https://www.legislation.gov.uk/ukpga/2015/15/section/22"
+    },
+    {
+      category: "Consumer Rights",
+      scenario: "You hire a builder to renovate your kitchen. The work is careless — crooked tiles, cabinets that won't close. What implied term have they breached?",
+      options: [
+        { text: "None, as long as they finished on the agreed date.", correct:false },
+        { text: "An implied term that services will be performed with reasonable care and skill.", correct:true },
+        { text: "None — UK law has no implied quality terms for services.", correct:false },
+        { text: "Only a term about using reasonably priced materials.", correct:false }
+      ],
+      explanation: "Section 49 implies into every consumer service contract a term that the trader will perform the service with reasonable care and skill — sloppy workmanship breaches this even if the job is technically \"done.\"",
+      act: "Consumer Rights Act 2015", section: "Section 49",
+      url: "https://www.legislation.gov.uk/ukpga/2015/15/section/49"
+    },
+    {
+      category: "Consumer Rights",
+      scenario: "You buy a jacket online. A week later you simply change your mind — nothing's wrong with it, you just don't want it. Can you cancel and get a refund?",
+      options: [
+        { text: "No — online purchases can only be returned if they're faulty.", correct:false },
+        { text: "Yes — most online purchases can be cancelled for any reason within a 14-day \"cooling-off\" period.", correct:true },
+        { text: "Yes, but only within 48 hours of delivery.", correct:false },
+        { text: "No — cooling-off rights only apply to purchases over £500.", correct:false }
+      ],
+      explanation: "Regulation 29 gives a right to cancel most distance contracts without giving any reason, and regulation 30 sets that cooling-off period at 14 days from receiving the goods (or from the contract date for services).",
+      act: "Consumer Contracts (Information, Cancellation and Additional Charges) Regulations 2013", section: "Regulations 29 & 30",
+      url: "https://www.legislation.gov.uk/uksi/2013/3134/regulation/29"
+    },
+    {
+      category: "Consumer Rights",
+      scenario: "You pay £600 of a £700 holiday package on your credit card. The travel company goes bust before you fly. Can you get your money back from the credit card company itself?",
+      options: [
+        { text: "No — the credit card company has no responsibility for what you buy.", correct:false },
+        { text: "Yes — for qualifying purchases, the card provider is jointly liable with the seller for breach of contract or misrepresentation.", correct:true },
+        { text: "Only if you'd paid the entire £700 by card, not a partial amount.", correct:false },
+        { text: "No — you can only claim through the collapsed company's administrators.", correct:false }
+      ],
+      explanation: "Section 75 makes the credit provider jointly and severally liable alongside the supplier for qualifying credit purchases (broadly, items priced over £100 up to £30,000) — even if you only put part of the cost on the card.",
+      act: "Consumer Credit Act 1974", section: "Section 75",
+      url: "https://www.legislation.gov.uk/ukpga/1974/39/section/75"
+    },
+    {
+      category: "Tenancy & Property",
+      scenario: "Your landlord takes a £1,200 deposit for your shorthold tenancy but never puts it into a protection scheme or gives you any paperwork about it. Is that legal?",
+      options: [
+        { text: "Yes — landlords can hold deposits however they like.", correct:false },
+        { text: "No — deposits must be protected in an authorised scheme within 30 days, with prescribed information given to the tenant.", correct:true },
+        { text: "Yes, as long as the deposit is under £1,500.", correct:false },
+        { text: "No — but only the local council can enforce this, not the tenant.", correct:false }
+      ],
+      explanation: "Section 213 requires deposits taken for assured shorthold tenancies to be protected in an authorised scheme within 30 days, and requires the tenant to be given prescribed information about where it's held.",
+      act: "Housing Act 2004", section: "Section 213",
+      url: "https://www.legislation.gov.uk/ukpga/2004/34/section/213"
+    },
+    {
+      category: "Tenancy & Property",
+      scenario: "Your boiler breaks in the depths of winter. You tell your landlord, but they refuse to fix it. Do they have a legal duty to repair it?",
+      options: [
+        { text: "No — repairs are always the tenant's responsibility unless the agreement says otherwise.", correct:false },
+        { text: "Yes — landlords of short leases have an implied duty to keep the structure and installations for heating, water, gas and electricity in repair.", correct:true },
+        { text: "Only if the tenancy agreement specifically mentions boilers.", correct:false },
+        { text: "No — this only applies to installations the tenant fitted themselves.", correct:false }
+      ],
+      explanation: "Section 11 implies a covenant into short leases (under 7 years) obliging the landlord to keep the structure, exterior, and installations for water, gas, electricity, sanitation and heating in proper working order.",
+      act: "Landlord and Tenant Act 1985", section: "Section 11",
+      url: "https://www.legislation.gov.uk/ukpga/1985/70/section/11"
+    },
+    {
+      category: "Tenancy & Property",
+      scenario: "While you're out, your landlord changes the locks on your flat and won't let you back in — without ever going to court. Is that legal?",
+      options: [
+        { text: "Yes — landlords can retake possession however they like if rent is owed.", correct:false },
+        { text: "No — it's a criminal offence to unlawfully deprive a residential occupier of their home without a proper legal eviction process.", correct:true },
+        { text: "Yes, as long as they give reasonable notice first.", correct:false },
+        { text: "No — but only if the tenant is fully up to date on rent.", correct:false }
+      ],
+      explanation: "Section 1 makes it a criminal offence to unlawfully deprive a residential occupier of occupation, or to harass them into leaving, without going through the proper legal eviction process — regardless of arrears.",
+      act: "Protection from Eviction Act 1977", section: "Section 1",
+      url: "https://www.legislation.gov.uk/ukpga/1977/43/section/1"
+    },
+    {
+      category: "Tenancy & Property",
+      scenario: "You want to build a new garden wall exactly on the boundary line shared with your neighbour. Do you need to tell them first?",
+      options: [
+        { text: "No — it's your land up to the boundary, so you can build freely.", correct:false },
+        { text: "Yes — you must serve at least one month's written notice on the adjoining owner before building on the line of junction.", correct:true },
+        { text: "No — only structural extensions to a house require notice, not garden walls.", correct:false },
+        { text: "Yes, but only if the wall will be taller than 2 metres.", correct:false }
+      ],
+      explanation: "Section 1 requires a building owner to serve at least a month's written notice before building a wall on the line of junction between two properties, giving the adjoining owner a chance to respond.",
+      act: "Party Wall etc. Act 1996", section: "Section 1",
+      url: "https://www.legislation.gov.uk/ukpga/1996/40/section/1"
+    },
+    {
+      category: "Road Traffic",
+      scenario: "A driver is breathalysed and found to be over the legal alcohol limit while driving. What kind of offence is this?",
+      options: [
+        { text: "It's only a civil matter resulting in a fine, not a criminal offence.", correct:false },
+        { text: "It's a criminal offence to drive, attempt to drive, or be in charge of a vehicle above the prescribed alcohol limit.", correct:true },
+        { text: "It's only an offence if an accident actually happens.", correct:false },
+        { text: "It's only an offence for professional or commercial drivers.", correct:false }
+      ],
+      explanation: "Section 5 makes it a criminal offence to drive, attempt to drive, or be in charge of a motor vehicle on a road (or other public place) with breath, blood or urine alcohol above the prescribed limit — no accident required.",
+      act: "Road Traffic Act 1988", section: "Section 5",
+      url: "https://www.legislation.gov.uk/ukpga/1988/52/section/5"
+    },
+    {
+      category: "Road Traffic",
+      scenario: "A driver clips a parked car, causing damage, and drives off without leaving any details. What have they failed to do?",
+      options: [
+        { text: "Nothing — minor damage to a parked car doesn't need to be reported.", correct:false },
+        { text: "They must stop and give their details, or report the accident to police within 24 hours if they couldn't.", correct:true },
+        { text: "They only need to report it if the other owner happened to see them.", correct:false },
+        { text: "They must report it within 7 days, not 24 hours.", correct:false }
+      ],
+      explanation: "Section 170 requires a driver involved in an accident causing damage or injury to stop and give their details if reasonably required, and to report it to police within 24 hours if that wasn't possible at the scene.",
+      act: "Road Traffic Act 1988", section: "Section 170",
+      url: "https://www.legislation.gov.uk/ukpga/1988/52/section/170"
+    },
+    {
+      category: "Road Traffic",
+      scenario: "Someone drives their car on a public road with no valid motor insurance. Is that an offence even if they never crash?",
+      options: [
+        { text: "No — it's only an offence if they actually cause an accident.", correct:false },
+        { text: "Yes — using a vehicle on a road without valid insurance is itself an offence.", correct:true },
+        { text: "No — insurance is only legally required for vehicles over 10 years old.", correct:false },
+        { text: "Yes, but only a verbal warning is given for a first offence.", correct:false }
+      ],
+      explanation: "Section 143 makes it an offence simply to use (or cause/permit the use of) a motor vehicle on a road or public place without a policy of insurance meeting the Act's requirements — the offence doesn't depend on a crash happening.",
+      act: "Road Traffic Act 1988", section: "Section 143",
+      url: "https://www.legislation.gov.uk/ukpga/1988/52/section/143"
+    },
+    {
+      category: "Road Traffic",
+      scenario: "A driver is stopped at a red light and quickly checks a text message on their handheld phone. Is that illegal?",
+      options: [
+        { text: "No — it's only illegal to use a phone while the car is actually moving.", correct:false },
+        { text: "Yes — using a hand-held phone while driving is prohibited, and \"using\" includes checking it even when stationary at lights, with only narrow exceptions.", correct:true },
+        { text: "No — checking a text, rather than making a call, isn't covered.", correct:false },
+        { text: "Yes, but only if the vehicle isn't in park or neutral.", correct:false }
+      ],
+      explanation: "Regulation 110 bans hand-held phone use while driving, defined broadly enough to cover illuminating the screen or checking a notification while stopped at lights — the narrow exceptions are things like a genuine 999 call or contactless payment while stationary.",
+      act: "Road Vehicles (Construction and Use) Regulations 1986", section: "Regulation 110",
+      url: "https://www.legislation.gov.uk/uksi/1986/1078/regulation/110"
+    },
+    {
+      category: "Data Protection",
+      scenario: "An employee looks up a customer's personal file purely out of curiosity, with no work reason or authorisation, and copies it. Is that a crime?",
+      options: [
+        { text: "No — it's only a disciplinary matter, not a criminal one.", correct:false },
+        { text: "Yes — knowingly or recklessly obtaining or disclosing personal data without the data controller's consent is a criminal offence.", correct:true },
+        { text: "No — only external hackers can commit data protection offences.", correct:false },
+        { text: "Yes, but only if the data is later sold or leaked publicly.", correct:false }
+      ],
+      explanation: "Section 170 makes it a criminal offence to knowingly or recklessly obtain, disclose, or procure disclosure of personal data without the controller's consent — an unauthorised nosy look can be enough, subject to limited defences.",
+      act: "Data Protection Act 2018", section: "Section 170",
+      url: "https://www.legislation.gov.uk/ukpga/2018/12/section/170"
+    },
+    {
+      category: "Data Protection",
+      scenario: "After a customer formally asks to see what data a company holds on them, an employee deletes some awkward notes from the file before it's handed over. Is that illegal?",
+      options: [
+        { text: "No — companies can edit files before responding to such requests.", correct:false },
+        { text: "Yes — altering or destroying information to prevent its disclosure in response to a subject access request is a specific criminal offence.", correct:true },
+        { text: "No — this is only a breach of internal company policy.", correct:false },
+        { text: "Yes, but only if the customer can prove they suffered financial loss.", correct:false }
+      ],
+      explanation: "Section 173 creates a specific offence for altering, blocking, erasing, destroying or concealing information with intent to prevent its disclosure once a subject access request has been made.",
+      act: "Data Protection Act 2018", section: "Section 173",
+      url: "https://www.legislation.gov.uk/ukpga/2018/12/section/173"
+    },
+    {
+      category: "Data Protection",
+      scenario: "You email a company asking, \"what personal data do you hold on me, and what do you use it for?\" Do they actually have to answer?",
+      options: [
+        { text: "No — companies can refuse without giving any reason.", correct:false },
+        { text: "Yes — you have a right to confirmation of whether your data is processed, plus details of purposes, recipients, and retention.", correct:true },
+        { text: "Only large companies with 500+ employees are required to respond.", correct:false },
+        { text: "No — this right only applies to financial data, not general personal data.", correct:false }
+      ],
+      explanation: "Article 15 gives data subjects the right to confirmation that their data is being processed, and access to it along with details like purposes of processing, recipients, and how long it's kept.",
+      act: "UK GDPR", section: "Article 15",
+      url: "https://www.legislation.gov.uk/eur/2016/679/article/15"
+    },
+    {
+      category: "Data Protection",
+      scenario: "You stop using an online service and ask them to delete all your personal data, since you've withdrawn consent. Must they comply?",
+      options: [
+        { text: "No — companies can keep data indefinitely once it's been collected.", correct:false },
+        { text: "Yes, generally — you can require erasure without undue delay where grounds apply, such as data no longer being necessary or consent being withdrawn.", correct:true },
+        { text: "Only if you were a paying, premium-tier customer.", correct:false },
+        { text: "No — erasure rights only apply to data collected before 2018.", correct:false }
+      ],
+      explanation: "Article 17 (the \"right to erasure\" / \"right to be forgotten\") lets a data subject require deletion of their data without undue delay once a qualifying ground applies — though there are exceptions, e.g. for legal obligations or freedom of expression.",
+      act: "UK GDPR", section: "Article 17",
+      url: "https://www.legislation.gov.uk/eur/2016/679/article/17"
+    }
+  ];
+
+  /* =========================================================
+     GAME STATE (in-memory only — no localStorage/sessionStorage)
+  ========================================================= */
+  const MAX_LIVES = 3;
+  let state = null;
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function newGame(){
+    const order = shuffle(QUESTIONS).map(q => {
+      return Object.assign({}, q, { options: shuffle(q.options) });
+    });
+    state = {
+      order,
+      index: 0,
+      score: 0,
+      streak: 0,
+      bestStreak: 0,
+      lives: MAX_LIVES,
+      answered: false,
+      results: [], // {category, correct}
+    };
+  }
+
+  /* =========================================================
+     DOM refs
+  ========================================================= */
+  const screens = {
+    start: document.getElementById('start-screen'),
+    game: document.getElementById('game-screen'),
+    end: document.getElementById('end-screen')
+  };
+  const caseLabel = document.getElementById('case-label');
+  const caseTracker = document.getElementById('case-tracker');
+  const hudScore = document.getElementById('hud-score');
+  const hudStreak = document.getElementById('hud-streak');
+  const hudLives = document.getElementById('hud-lives');
+  const qCategory = document.getElementById('q-category');
+  const qScenario = document.getElementById('q-scenario');
+  const qOptions = document.getElementById('q-options');
+  const feedback = document.getElementById('feedback');
+  const stampEl = document.getElementById('stamp');
+  const streakNote = document.getElementById('streak-note');
+  const qExplanation = document.getElementById('q-explanation');
+  const qCitation = document.getElementById('q-citation');
+  const qLink = document.getElementById('q-link');
+  const continueBtn = document.getElementById('continue-btn');
+  const endScore = document.getElementById('end-score');
+  const endSub = document.getElementById('end-sub');
+  const breakdown = document.getElementById('breakdown');
+
+  function showScreen(name){
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+  }
+
+  /* =========================================================
+     Render
+  ========================================================= */
+  function renderTracker(){
+    caseTracker.innerHTML = '';
+    state.order.forEach((_, i) => {
+      const tab = document.createElement('div');
+      tab.className = 'tab';
+      if(i === state.index) tab.classList.add('current');
+      const result = state.results[i];
+      if(result){
+        tab.classList.add(result.correct ? 'done-correct' : 'done-wrong');
+      }
+      caseTracker.appendChild(tab);
+    });
+    caseTracker.setAttribute('aria-valuenow', String(state.index + 1));
+    caseTracker.setAttribute('aria-valuemin', '1');
+    caseTracker.setAttribute('aria-valuemax', String(state.order.length));
+  }
+
+  function renderLives(){
+    hudLives.innerHTML = '';
+    for(let i = 0; i < MAX_LIVES; i++){
+      const seal = document.createElement('span');
+      seal.className = 'seal' + (i < state.lives ? '' : ' lost');
+      seal.setAttribute('aria-hidden', 'true');
+      hudLives.appendChild(seal);
+    }
+    hudLives.setAttribute('aria-label', state.lives + ' lives remaining out of ' + MAX_LIVES);
+  }
+
+  function renderHud(){
+    hudScore.textContent = state.score;
+    hudStreak.textContent = state.streak;
+    renderLives();
+  }
+
+  function renderQuestion(){
+    state.answered = false;
+    feedback.classList.remove('show');
+    stampEl.classList.remove('animate', 'wrong-stamp');
+
+    const q = state.order[state.index];
+    caseLabel.textContent = 'Question ' + (state.index + 1) + ' of ' + state.order.length;
+    qCategory.textContent = q.category;
+    qScenario.textContent = q.scenario;
+
+    qOptions.innerHTML = '';
+    q.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'option';
+      btn.type = 'button';
+      btn.setAttribute('data-index', String(i));
+      const key = document.createElement('span');
+      key.className = 'key';
+      key.textContent = String(i + 1);
+      const label = document.createElement('span');
+      label.textContent = opt.text;
+      btn.appendChild(key);
+      btn.appendChild(label);
+      btn.addEventListener('click', () => selectOption(i));
+      qOptions.appendChild(btn);
+    });
+
+    renderTracker();
+    renderHud();
+  }
+
+  function selectOption(i){
+    if(state.answered) return;
+    state.answered = true;
+
+    const q = state.order[state.index];
+    const chosen = q.options[i];
+    const isCorrect = !!chosen.correct;
+
+    // lock all buttons, mark correct/wrong
+    const buttons = Array.from(qOptions.querySelectorAll('.option'));
+    buttons.forEach((btn, idx) => {
+      btn.disabled = true;
+      if(q.options[idx].correct){
+        btn.classList.add('correct');
+      } else if(idx === i){
+        btn.classList.add('wrong');
+      } else {
+        btn.classList.add('dim');
+      }
+    });
+
+    if(isCorrect){
+      state.streak += 1;
+      state.bestStreak = Math.max(state.bestStreak, state.streak);
+      const bonus = Math.round(100 * (1 + state.streak * 0.1));
+      state.score += bonus;
+      stampEl.textContent = 'Affirmed';
+      stampEl.classList.remove('wrong-stamp');
+      streakNote.innerHTML = state.streak > 1
+        ? 'Streak of <strong>' + state.streak + '</strong> — +' + bonus + ' points'
+        : '+' + bonus + ' points';
+    } else {
+      state.streak = 0;
+      state.lives -= 1;
+      stampEl.textContent = 'Overruled';
+      stampEl.classList.add('wrong-stamp');
+      streakNote.textContent = 'Streak reset';
+    }
+
+    state.results[state.index] = { category: q.category, correct: isCorrect };
+
+    qExplanation.innerHTML = q.explanation;
+    qCitation.innerHTML = '<em>' + q.section + ', ' + q.act + '</em>';
+    qLink.href = q.url;
+
+    feedback.classList.add('show');
+    void stampEl.offsetWidth; // restart animation
+    stampEl.classList.add('animate');
+
+    renderTracker();
+    renderHud();
+
+    continueBtn.textContent = (state.lives <= 0) ? 'See Verdict →' : 'Next Case →';
+    continueBtn.focus();
+  }
+
+  function nextQuestion(){
+    if(state.lives <= 0 || state.index >= state.order.length - 1){
+      endGame();
+      return;
+    }
+    state.index += 1;
+    renderQuestion();
+  }
+
+  function endGame(){
+    showScreen('end');
+    endScore.textContent = state.score;
+    const answeredCount = state.results.filter(Boolean).length;
+    const correctCount = state.results.filter(r => r && r.correct).length;
+    endSub.textContent = 'points · ' + correctCount + ' of ' + answeredCount + ' correct · best streak ' + state.bestStreak;
+
+    // breakdown by category
+    const cats = {};
+    state.results.forEach((r, i) => {
+      if(!r) return;
+      const c = r.category;
+      if(!cats[c]) cats[c] = { correct: 0, total: 0 };
+      cats[c].total += 1;
+      if(r.correct) cats[c].correct += 1;
+    });
+
+    breakdown.innerHTML = '';
+    Object.keys(cats).forEach(cat => {
+      const { correct, total } = cats[cat];
+      const pct = total ? Math.round((correct / total) * 100) : 0;
+      const row = document.createElement('div');
+      row.className = 'breakdown-row';
+      row.innerHTML =
+        '<span class="cat-name">' + cat + '</span>' +
+        '<span class="breakdown-bar"><span class="breakdown-fill" style="width:' + pct + '%"></span></span>' +
+        '<span class="cat-score">' + correct + '/' + total + '</span>';
+      breakdown.appendChild(row);
+    });
+  }
+
+  /* =========================================================
+     Keyboard controls
+     Number keys 1-4 pick an answer; Enter/Space works natively
+     on focused buttons (native <button> behaviour).
+  ========================================================= */
+  document.addEventListener('keydown', (e) => {
+    if(!screens.game.classList.contains('active')) return;
+    if(state && !state.answered && ['1','2','3','4'].includes(e.key)){
+      const idx = parseInt(e.key, 10) - 1;
+      const btn = qOptions.querySelector('.option[data-index="' + idx + '"]');
+      if(btn) btn.click();
+    }
+  });
+
+  /* =========================================================
+     Wire up buttons
+  ========================================================= */
+  document.getElementById('start-btn').addEventListener('click', () => {
+    newGame();
+    showScreen('game');
+    renderQuestion();
+  });
+
+  continueBtn.addEventListener('click', nextQuestion);
+
+  document.getElementById('play-again-btn').addEventListener('click', () => {
+    newGame();
+    showScreen('game');
+    renderQuestion();
+  });
+
+})();
+</script>
+</body>
+</html>
